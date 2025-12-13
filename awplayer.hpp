@@ -49,11 +49,25 @@ struct DLL {
 
     }
 
+    operator bool() const noexcept {
+
+        return _bool();
+
+    }
+
+    private:
+
+        bool _bool(void) const noexcept {
+
+            return _dll == nullptr ? false : true;
+
+        }
+
     protected:
 
         template<typename SYM_T>
         SYM_T _load_symbol(const char* symbol) {
-            if(_dll) {
+            if(_bool()) {
                 SYM_T ptr = reinterpret_cast<SYM_T>(::dlsym(_dll, symbol));
                 if(ptr) return ptr;
                 else std::runtime_error("dlsym");
@@ -69,7 +83,7 @@ class TPlayer final: public AWPlayer {
     
     public:
 
-        struct TPlayerDLL final: protected DLL {
+        struct TPlayerDLL final: DLL {
 
             using NotifyCallback       = int(*)(void*, int, int, void*);
                 
@@ -138,49 +152,51 @@ class TPlayer final: public AWPlayer {
         explicit TPlayer (
             const TPlayerDLL::NotifyCallback ncb=[](void* _a0, int  _a1, int _a2, void* _a3)
                 { (void)_a0; (void)_a1; (void)_a2; (void)_a3; return 0; }
-        ): _dll(TPLAYER_DLL) {
+        ): _dll(TPLAYER_DLL), _player(nullptr) {
             
-            _player = _dll.apiCreate(0);
-            if(!_player) throw std::runtime_error("TPlayerCreate");
+            if(_dll) _player = _dll.apiCreate(0);
 
-            if(_dll.apiSetNotifyCallback(_player, ncb, reinterpret_cast<void*>(this)))
-                throw std::runtime_error("TPlayerSetNotifyCallback");
+            if(_player) {
+                if(_dll.apiSetNotifyCallback)
+                    if(_dll.apiSetNotifyCallback(_player, ncb, reinterpret_cast<void*>(this)))
+                        throw std::runtime_error("TPlayerSetNotifyCallback");
+            } throw std::runtime_error("TPlayerCreate");
 
         }
 
         virtual void play(const std::string& url) override {
 
-            if(_player) {
-
+            if(_dll.apiSetDataSource)
                 if(_dll.apiSetDataSource(_player, url.c_str(), NULL))
                     throw std::runtime_error("TPlayerSetDataSource");
 
+            if(_dll.apiPrepare)
                 if(_dll.apiPrepare(_player))
                     throw std::runtime_error("TPlayerPrepare");
 
+            if(_dll.apiStart)
                 if(_dll.apiStart(_player))
                     throw std::runtime_error("TPlayerStart");
-
-            }
 
         }
 
         virtual void stop(void) override {
 
-            _dll.apiStop(_player);
-
+            if(_dll.apiStop) _dll.apiStop(_player);
+        
         }
 
         void operator()(const int x ,const int y, const uint32_t w, const uint32_t h) const {
 
-            _dll.apiSetDisplayRect(_player, x, y, w, h);
+            if(_dll.apiSetDisplayRect) _dll.apiSetDisplayRect(_player, x, y, w, h);
 
         }
         
         ~TPlayer(void) override {
 
             stop();
-            _dll.apiDestroy(_player);
+            
+            if(_dll.apiDestroy) _dll.apiDestroy(_player);
 
         };
 
