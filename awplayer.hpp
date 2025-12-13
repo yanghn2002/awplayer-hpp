@@ -70,7 +70,7 @@ struct DLL {
             if(_bool()) {
                 SYM_T ptr = reinterpret_cast<SYM_T>(::dlsym(_dll, symbol));
                 if(ptr) return ptr;
-                else std::runtime_error("dlsym");
+                else throw std::runtime_error("dlsym");
             } else return nullptr;
         }
 
