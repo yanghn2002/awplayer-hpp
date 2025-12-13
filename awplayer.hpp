@@ -65,11 +65,11 @@ struct DLL {
 };
 
 
-class TPlayer final: protected AWPlayer {
+class TPlayer final: public AWPlayer {
     
     public:
 
-        struct TPlayerDLL final: DLL {
+        struct TPlayerDLL final: protected DLL {
 
             using NotifyCallback       = int(*)(void*, int, int, void*);
                 
