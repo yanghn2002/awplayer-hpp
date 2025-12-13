@@ -160,7 +160,7 @@ class TPlayer final: public AWPlayer {
                 if(_dll.apiSetNotifyCallback)
                     if(_dll.apiSetNotifyCallback(_player, ncb, reinterpret_cast<void*>(this)))
                         throw std::runtime_error("TPlayerSetNotifyCallback");
-            } throw std::runtime_error("TPlayerCreate");
+            } else throw std::runtime_error("TPlayerCreate");
 
         }
 
