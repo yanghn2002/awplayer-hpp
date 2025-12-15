@@ -1,23 +1,37 @@
 #include <iostream>
+#include <unistd.h>
 #include <signal.h>
 #include "awplayer.hpp"
 
 
 using namespace AWPlayer;
+using namespace std;
 
+
+TPlayer tplayer;
+
+void playUrl(const char* url) {
+    cout << "Playing: " << url << endl;
+    tplayer.reset();
+    tplayer.play(url);
+}
+void waitPlaying(void) { while(tplayer.state() == TPlayer::PLAYING); }
 
 int main(int argc, char* argv[]) {
 
     signal(SIGINT, [](int _){ (void)_; exit(0); });
 
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <video-source>" << '\n';
+    if (argc < 2) {
+        cerr << "Usage: " << argv[0] << " <video-source-1> ..." << '\n';
         return 1;
     }
 
-    TPlayer tplayer;
-    tplayer.play(argv[1]);
-    while(true);
+    playUrl(argv[1]);
+    for(int i = 2; i < argc; i++) {
+        waitPlaying();
+        playUrl(argv[i]);
+    }
+    waitPlaying();
 
     return 0;
 

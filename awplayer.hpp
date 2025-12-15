@@ -27,7 +27,10 @@ class AWPlayer {
         AWPlayer(void) = default;
         virtual ~AWPlayer(void) = default;
         virtual void play(const std::string&) = 0;
+        virtual void pause(void) = 0;
+        virtual void reset(void) = 0;
         virtual void stop(void) = 0;
+        virtual int state(void) = 0;
 
 };
 
@@ -88,31 +91,40 @@ class TPlayer final: public AWPlayer {
             using NotifyCallback       = int(*)(void*, int, int, void*);
                 
             using APICreate            = void*(*)(int);
-            using APISetNotifyCallback = int(*)(void*, NotifyCallback, void*);
             using APISetDataSource     = int(*)(void*, const char*, void*);
             using APIPrepare           = int(*)(void*);
             using APIStart             = int(*)(void*);
-            using APISetDisplayRect    = void(*)(void*, int, int, uint32_t, uint32_t);
+            using APIPause             = int(*)(void*);
+            using APIReset             = int(*)(void*);
             using APIStop              = int(*)(void*);
+            using APIIsPlaying         = bool(*)(void*);
             using APIDestroy           = void(*)(void*);
+            using APISetDisplayRect    = void(*)(void*, int, int, uint32_t, uint32_t);
+            using APISetNotifyCallback = int(*)(void*, NotifyCallback, void*);
                 
             APICreate            apiCreate;
-            APISetNotifyCallback apiSetNotifyCallback;
             APISetDataSource     apiSetDataSource;
             APIPrepare           apiPrepare;
             APIStart             apiStart;
-            APISetDisplayRect    apiSetDisplayRect;
+            APIPause             apiPause;
+            APIReset             apiReset;
             APIStop              apiStop;
+            APIIsPlaying         apiIsPlaying;
             APIDestroy           apiDestroy;
+            APISetDisplayRect    apiSetDisplayRect;
+            APISetNotifyCallback apiSetNotifyCallback;
 
             explicit TPlayerDLL(const char* dll): apiCreate(nullptr),
-                                                  apiSetNotifyCallback(nullptr),
                                                   apiSetDataSource(nullptr),
                                                   apiPrepare(nullptr),
                                                   apiStart(nullptr),
-                                                  apiSetDisplayRect(nullptr),
+                                                  apiPause(nullptr),
+                                                  apiReset(nullptr),
                                                   apiStop(nullptr),
+                                                  apiIsPlaying(nullptr),
                                                   apiDestroy(nullptr),
+                                                  apiSetDisplayRect(nullptr),
+                                                  apiSetNotifyCallback(nullptr),
                                                   DLL(dll) { load_symbols(); }
 
             ~TPlayerDLL(void) override = default;
@@ -123,23 +135,34 @@ class TPlayer final: public AWPlayer {
                     
                     apiCreate            = _load_symbol<APICreate>
                                                        ("TPlayerCreate");
-                    apiSetNotifyCallback = _load_symbol<APISetNotifyCallback>
-                                                       ("TPlayerSetNotifyCallback");
                     apiSetDataSource     = _load_symbol<APISetDataSource>
                                                        ("TPlayerSetDataSource");
                     apiPrepare           = _load_symbol<APIPrepare>
                                                        ("TPlayerPrepare");
                     apiStart             = _load_symbol<APIStart>
                                                        ("TPlayerStart");
-                    apiSetDisplayRect    = _load_symbol<APISetDisplayRect>
-                                                       ("TPlayerSetDisplayRect");
+                    apiPause             = _load_symbol<APIPause>
+                                                       ("TPlayerPause");
+                    apiReset             = _load_symbol<APIReset>
+                                                       ("TPlayerReset");
                     apiStop              = _load_symbol<APIStop>
                                                        ("TPlayerStop");
+                    apiIsPlaying         = _load_symbol<APIIsPlaying>
+                                                       ("TPlayerIsPlaying");
                     apiDestroy           = _load_symbol<APIDestroy>
                                                        ("TPlayerDestroy");
+                    apiSetDisplayRect    = _load_symbol<APISetDisplayRect>
+                                                       ("TPlayerSetDisplayRect");
+                    apiSetNotifyCallback = _load_symbol<APISetNotifyCallback>
+                                                       ("TPlayerSetNotifyCallback");
                 
                 }
 
+        };
+
+        enum State {
+            _       = 0,
+            PLAYING = 1,
         };
 
     private:
@@ -180,10 +203,28 @@ class TPlayer final: public AWPlayer {
 
         }
 
+        virtual void pause(void) override {
+
+            if(_dll.apiPause) _dll.apiPause(_player);
+        
+        }
+
+        virtual void reset(void) override {
+
+            if(_dll.apiReset) _dll.apiReset(_player);
+        
+        }
+
         virtual void stop(void) override {
 
             if(_dll.apiStop) _dll.apiStop(_player);
         
+        }
+
+        virtual int state(void) override {
+
+            return _dll.apiIsPlaying(_player) ? PLAYING : _;
+
         }
 
         void operator()(const int x ,const int y, const uint32_t w, const uint32_t h) const {
