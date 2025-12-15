@@ -39,7 +39,7 @@ struct DLL {
     DLL(const char* dll): _dll(nullptr) {
     
         _dll = ::dlopen(dll, RTLD_LAZY);
-        if(!_dll) std::runtime_error("dlopen");
+        if(!_dll) throw std::runtime_error("dlopen");
     
     }
 
