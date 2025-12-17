@@ -26,11 +26,22 @@ class AWPlayer {
 
         AWPlayer(void) = default;
         virtual ~AWPlayer(void) = default;
-        virtual void play(const std::string&) = 0;
+
+        virtual void setVideo(const std::string&) = 0;
+        virtual void prepare(void) = 0;
+        virtual void start(void) = 0;
         virtual void pause(void) = 0;
         virtual void reset(void) = 0;
         virtual void stop(void) = 0;
         virtual int state(void) = 0;
+        
+        void play(const std::string& url) {
+
+            setVideo(url);
+            prepare();
+            start();
+
+        }
 
 };
 
@@ -187,37 +198,51 @@ class TPlayer final: public AWPlayer {
 
         }
 
-        virtual void play(const std::string& url) override {
+        virtual void setVideo(const std::string& url) override {
 
             if(_dll.apiSetDataSource)
                 if(_dll.apiSetDataSource(_player, url.c_str(), NULL))
                     throw std::runtime_error("TPlayerSetDataSource");
 
+        }
+
+        virtual void prepare(void) override {
+
             if(_dll.apiPrepare)
                 if(_dll.apiPrepare(_player))
                     throw std::runtime_error("TPlayerPrepare");
+        
+        }
+
+        virtual void start(void) override {
 
             if(_dll.apiStart)
                 if(_dll.apiStart(_player))
                     throw std::runtime_error("TPlayerStart");
-
+        
         }
 
         virtual void pause(void) override {
 
-            if(_dll.apiPause) _dll.apiPause(_player);
+            if(_dll.apiPause)
+                if(_dll.apiPause(_player))
+                    throw std::runtime_error("TPlayerPause");
         
         }
 
         virtual void reset(void) override {
 
-            if(_dll.apiReset) _dll.apiReset(_player);
+            if(_dll.apiReset)
+                if(_dll.apiReset(_player))
+                    throw std::runtime_error("TPlayerReset");
         
         }
 
         virtual void stop(void) override {
 
-            if(_dll.apiStop) _dll.apiStop(_player);
+            if(_dll.apiStop)
+                if(_dll.apiStop(_player))
+                    throw std::runtime_error("TPlayerStop");
         
         }
 

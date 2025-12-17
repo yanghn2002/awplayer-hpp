@@ -1,5 +1,4 @@
 #include <iostream>
-#include <unistd.h>
 #include <signal.h>
 #include "awplayer.hpp"
 
