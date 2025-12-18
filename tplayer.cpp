@@ -14,7 +14,7 @@ void playUrl(const char* url) {
     tplayer.reset();
     tplayer.play(url);
 }
-void waitPlaying(void) { while(tplayer.state() == TPlayer::PLAYING); }
+void waitPlaying(void) { while(tplayer.isWorking()); }
 
 int main(int argc, char* argv[]) {
 

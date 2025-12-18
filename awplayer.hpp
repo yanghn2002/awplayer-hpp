@@ -7,6 +7,7 @@
 #endif
 
 
+#include <map>
 #include <string>
 #include <stdexcept>
 #include <dlfcn.h>
@@ -15,6 +16,16 @@
 namespace AWPlayer {
 
 
+enum State {
+    ERROR    =-1,
+    IDLE     = 0,
+    COMPLETE = 1,
+    STOPED   = 2,
+    PLAYING  = 3,
+    PREPARED = 4,
+    PAUSED   = 5,
+};
+
 enum class Type {
     TPlayer,
 };
@@ -22,18 +33,76 @@ enum class Type {
 
 class AWPlayer {
 
+    protected:
+
+        State _state;
+
+        virtual void _prepare(void) = 0;
+        virtual void _start(void) = 0;
+        virtual void _pause(void) = 0;
+        virtual void _reset(void) = 0;
+        virtual void _stop(void) = 0;
+
     public:
 
-        AWPlayer(void) = default;
+        AWPlayer(void): _state(State::IDLE) { }
         virtual ~AWPlayer(void) = default;
 
+        State state(void) {
+
+            return _state;
+
+        }
+
+        bool isOk(void) {
+
+            return static_cast<int>(_state) >= 0 ? true : false;
+
+        }
+
+        bool isWorking(void) {
+
+            return static_cast<int>(_state) >= 3 ? true : false;
+
+        }
+
         virtual void setVideo(const std::string&) = 0;
-        virtual void prepare(void) = 0;
-        virtual void start(void) = 0;
-        virtual void pause(void) = 0;
-        virtual void reset(void) = 0;
-        virtual void stop(void) = 0;
-        virtual int state(void) = 0;
+        virtual void setDisplayRect(const int, const int, const uint32_t, const uint32_t) = 0;
+
+        void prepare(void) {
+
+            _prepare();
+            _state = State::PREPARED;
+
+        }
+
+        void start(void) {
+
+            _start();
+            _state = State::PLAYING;
+
+        }
+
+        void pause(void) {
+
+            _pause();
+            _state = State::PAUSED;
+
+        }
+
+        void reset(void) {
+
+            _reset();
+            _state = State::IDLE;
+
+        }
+
+        void stop(void) {
+
+            _stop();
+            _state = State::STOPED;
+
+        }
         
         void play(const std::string& url) {
 
@@ -171,11 +240,6 @@ class TPlayer final: public AWPlayer {
 
         };
 
-        enum State {
-            _       = 0,
-            PLAYING = 1,
-        };
-
     private:
 
         TPlayerDLL _dll;
@@ -183,16 +247,19 @@ class TPlayer final: public AWPlayer {
 
     public:
     
-        explicit TPlayer (
-            const TPlayerDLL::NotifyCallback ncb=[](void* _a0, int  _a1, int _a2, void* _a3)
-                { (void)_a0; (void)_a1; (void)_a2; (void)_a3; return 0; }
-        ): _dll(TPLAYER_DLL), _player(nullptr) {
+        explicit TPlayer(void): _dll(TPLAYER_DLL), _player(nullptr) {
             
             if(_dll) _player = _dll.apiCreate(0);
 
             if(_player) {
                 if(_dll.apiSetNotifyCallback)
-                    if(_dll.apiSetNotifyCallback(_player, ncb, reinterpret_cast<void*>(this)))
+                    if(_dll.apiSetNotifyCallback(_player,
+                            [](void* self, int msg, int param0, void* param1){
+                                (int)param0; (void*)param1; // unused
+                                if(msg ==  1)     ((TPlayer*)self)->_state = State::COMPLETE;
+                                else if(msg == 3) ((TPlayer*)self)->_state = State::ERROR;
+                                return 0;
+                            }, this))
                         throw std::runtime_error("TPlayerSetNotifyCallback");
             } else throw std::runtime_error("TPlayerCreate");
 
@@ -203,56 +270,11 @@ class TPlayer final: public AWPlayer {
             if(_dll.apiSetDataSource)
                 if(_dll.apiSetDataSource(_player, url.c_str(), NULL))
                     throw std::runtime_error("TPlayerSetDataSource");
-
-        }
-
-        virtual void prepare(void) override {
-
-            if(_dll.apiPrepare)
-                if(_dll.apiPrepare(_player))
-                    throw std::runtime_error("TPlayerPrepare");
         
         }
 
-        virtual void start(void) override {
-
-            if(_dll.apiStart)
-                if(_dll.apiStart(_player))
-                    throw std::runtime_error("TPlayerStart");
-        
-        }
-
-        virtual void pause(void) override {
-
-            if(_dll.apiPause)
-                if(_dll.apiPause(_player))
-                    throw std::runtime_error("TPlayerPause");
-        
-        }
-
-        virtual void reset(void) override {
-
-            if(_dll.apiReset)
-                if(_dll.apiReset(_player))
-                    throw std::runtime_error("TPlayerReset");
-        
-        }
-
-        virtual void stop(void) override {
-
-            if(_dll.apiStop)
-                if(_dll.apiStop(_player))
-                    throw std::runtime_error("TPlayerStop");
-        
-        }
-
-        virtual int state(void) override {
-
-            return _dll.apiIsPlaying(_player) ? PLAYING : _;
-
-        }
-
-        void operator()(const int x ,const int y, const uint32_t w, const uint32_t h) const {
+        virtual void setDisplayRect
+        (const int x ,const int y, const uint32_t w, const uint32_t h) override {
 
             if(_dll.apiSetDisplayRect) _dll.apiSetDisplayRect(_player, x, y, w, h);
 
@@ -265,6 +287,48 @@ class TPlayer final: public AWPlayer {
             if(_dll.apiDestroy) _dll.apiDestroy(_player);
 
         };
+    
+    private:
+
+        virtual void _prepare(void) override {
+
+            if(_dll.apiPrepare)
+                if(_dll.apiPrepare(_player))
+                    throw std::runtime_error("TPlayerPrepare");
+        
+        }
+
+        virtual void _start(void) override {
+
+            if(_dll.apiStart)
+                if(_dll.apiStart(_player))
+                    throw std::runtime_error("TPlayerStart");
+        
+        }
+
+        virtual void _pause(void) override {
+
+            if(_dll.apiPause)
+                if(_dll.apiPause(_player))
+                    throw std::runtime_error("TPlayerPause");
+        
+        }
+
+        virtual void _reset(void) override {
+
+            if(_dll.apiReset)
+                if(_dll.apiReset(_player))
+                    throw std::runtime_error("TPlayerReset");
+        
+        }
+
+        virtual void _stop(void) override {
+
+            if(_dll.apiStop)
+                if(_dll.apiStop(_player))
+                    throw std::runtime_error("TPlayerStop");
+        
+        }
 
 };
 
