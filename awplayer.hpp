@@ -7,7 +7,6 @@
 #endif
 
 
-#include <map>
 #include <string>
 #include <stdexcept>
 #include <dlfcn.h>
@@ -171,7 +170,7 @@ class TPlayer final: public AWPlayer {
             using NotifyCallback       = int(*)(void*, int, int, void*);
                 
             using APICreate            = void*(*)(int);
-            using APISetDataSource     = int(*)(void*, const char*, void*);
+            using APISetDataSource     = int(*)(void*, const char*, void*, void*);
             using APIPrepare           = int(*)(void*);
             using APIStart             = int(*)(void*);
             using APIPause             = int(*)(void*);
@@ -256,7 +255,7 @@ class TPlayer final: public AWPlayer {
                     if(_dll.apiSetNotifyCallback(_player,
                             [](void* self, int msg, int param0, void* param1){
                                 (int)param0; (void*)param1; // unused
-                                if(msg ==  1)     ((TPlayer*)self)->_state = State::COMPLETE;
+                                if(msg == 1)   ((TPlayer*)self)->_state = State::COMPLETE;
                                 else if(msg == 3) ((TPlayer*)self)->_state = State::ERROR;
                                 return 0;
                             }, this))
@@ -268,7 +267,7 @@ class TPlayer final: public AWPlayer {
         virtual void setVideo(const std::string& url) override {
 
             if(_dll.apiSetDataSource)
-                if(_dll.apiSetDataSource(_player, url.c_str(), NULL))
+                if(_dll.apiSetDataSource(_player, url.c_str(), NULL, NULL))
                     throw std::runtime_error("TPlayerSetDataSource");
         
         }
